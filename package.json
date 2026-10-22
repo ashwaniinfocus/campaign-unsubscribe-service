@@ -1,0 +1,28 @@
+{
+  "name": "unsubscribe-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone unsubscribe service (Express + TypeScript, Aurora PostgreSQL with IAM auth)",
+  "main": "dist/index.js",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "tsx watch --env-file=.env src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/rds-signer": "^3.600.0",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.10",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
