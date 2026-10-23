@@ -16,7 +16,7 @@ app.use(
       directives: {
         defaultSrc: ["'self'"],
         styleSrc: ["'self'"],
-        imgSrc: ["'self'", "data:"],
+        imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
         formAction: ["'self'"],
         frameAncestors: ["'none'"],
         baseUri: ["'none'"],

@@ -13,12 +13,11 @@ export const maskEmail = (email: string): string => {
   return `${local.slice(0, 1)}***@${domain}`;
 };
 
-const LOGO = `<svg viewBox="0 0 40 40" width="40" height="40" aria-hidden="true">
-  <rect width="40" height="40" rx="10" fill="#fff"/>
-  <path d="M20 8a12 12 0 1 0 12 12" fill="none" stroke="#0b1020" stroke-width="4" stroke-linecap="round"/>
-  <path d="M20 14a6 6 0 1 0 6 6" fill="none" stroke="#0b1020" stroke-width="4" stroke-linecap="round"/>
-  <circle cx="30" cy="10" r="3" fill="#e11d48"/>
-</svg>`;
+const LOGO = `<img
+              src="https://res.cloudinary.com/vf4mmduq/image/upload/f_auto/q_auto/image-modified.png"
+              alt="Infocus Logo"
+              class="main-logo"
+            />`;
 
 const ICONS = {
   mail: `<path d="M4 6h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z"/><path d="m3 7 9 6 9-6"/>`,
@@ -92,7 +91,7 @@ export const invalidPage = () =>
     "Link not valid",
     `    ${icon("alert", "amber")}
     <h1>This link isn't valid</h1>
-    <p class="lead">Open the unsubscribe link in your email again. If it still doesn't work, reply to that email and we'll remove you manually.</p>
+    <p class="lead">Open the unsubscribe link in your email again.</p>
     <div class="actions">${homeLink()}</div>`,
   );
 
