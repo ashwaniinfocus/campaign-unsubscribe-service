@@ -51,7 +51,6 @@ router.get("/unsubscribe", limiter, async (req, res) => {
       return void res.status(400).type("html").send(invalidPage());
 
     const sub = await findSubscriber(r);
-    console.log(sub);
     if (!sub) return void res.status(404).type("html").send(invalidPage());
     if (sub.unsubscribed) return void res.type("html").send(donePage(true));
 
