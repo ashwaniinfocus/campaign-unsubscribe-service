@@ -44,6 +44,8 @@ const layout = (
 <title>${esc(title)} · ${esc(config.brandName)}</title>
 <link rel="stylesheet" href="/static/styles.css">
 </head>
+<div id="toast" class="toast" role="alert" aria-live="assertive" hidden></div>
+<script src="/static/app.js" defer></script>
 <body>
 <header class="topbar">
   <div class="brand">
@@ -79,7 +81,7 @@ export const confirmPage = (
     <h1>Unsubscribe from emails?</h1>
     <p class="lead">You'll stop receiving emails from ${esc(config.brandName)} at</p>
     <p class="email">${esc(maskEmail(email))}</p>
-    <form method="post" action="/unsubscribe">
+    <form id="unsub-form" method="post" action="/unsubscribe" novalidate>
       <input type="hidden" name="token" value="${esc(token)}">
       <fieldset class="why">
           <legend class="why-title">Why are you unsubscribing? <span class="req" aria-hidden="true">*</span></legend>${opts.error ? `\n        <p class="form-error" role="alert">${esc(opts.error)}</p>` : ""}
