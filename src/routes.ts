@@ -1,6 +1,11 @@
 import { Router, urlencoded } from "express";
 import rateLimit from "express-rate-limit";
-import { confirmUnsubscribe, findSubscriber, issueConfirmToken } from "./store";
+import {
+  confirmUnsubscribe,
+  findSubscriber,
+  issueConfirmToken,
+  peekConfirmToken,
+} from "./store";
 import {
   confirmPage,
   donePage,
@@ -9,6 +14,7 @@ import {
   invalidPage,
 } from "./views";
 import { getPool } from "./db";
+import { MAX_REMARKS, REASON_IDS } from "./reasons";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -65,14 +71,41 @@ router.get("/unsubscribe", limiter, async (req, res) => {
 router.post(
   "/unsubscribe",
   limiter,
-  urlencoded({ extended: false, limit: "2kb" }),
+  urlencoded({ extended: false, limit: "15kb" }),
   async (req, res) => {
     try {
       const token = typeof req.body?.token === "string" ? req.body.token : "";
       if (!TOKEN_RE.test(token))
         return void res.status(400).type("html").send(invalidPage());
 
-      const result = await confirmUnsubscribe(token);
+      const rawReason =
+        typeof req.body?.reason === "string" ? req.body.reason : "";
+      const reason = REASON_IDS.has(rawReason) ? rawReason : null; // only known ids are stored
+      const rawRemarks =
+        typeof req.body?.remarks === "string" ? req.body.remarks : "";
+      const remarks =
+        rawRemarks
+          .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "") // Postgres rejects NUL
+          .trim()
+          .slice(0, MAX_REMARKS) || null;
+
+      // Reason is mandatory: show the form again (keeping what they typed) instead of unsubscribing.
+      if (!reason) {
+        const pending = await peekConfirmToken(token);
+        if (pending) {
+          return void res
+            .status(400)
+            .type("html")
+            .send(
+              confirmPage(pending.email, token, {
+                error: "Please choose a reason to continue.",
+                remarks: remarks ?? "",
+              }),
+            );
+        }
+      }
+
+      const result = await confirmUnsubscribe(token, { reason, remarks });
       if (result === "done") return void res.type("html").send(donePage());
       if (result === "expired")
         return void res.status(410).type("html").send(expiredPage());

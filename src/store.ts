@@ -13,7 +13,9 @@ export type ConfirmResult = "done" | "expired" | "invalid";
 
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 
-export async function findSubscriber(id: string): Promise<SubscriberRow | null> {
+export async function findSubscriber(
+  id: string,
+): Promise<SubscriberRow | null> {
   const r = await getPool().query<SubscriberRow>(
     `SELECT id, first_name, email, unsubscribed FROM subscribers WHERE id = $1`,
     [id],
@@ -52,8 +54,29 @@ export async function issueConfirmToken(
   }
 }
 
+/** Checks a confirm token without using it. Returns the subscriber's email if it is still valid. */
+export async function peekConfirmToken(
+  token: string,
+): Promise<{ email: string } | null> {
+  const r = await getPool().query<{ email: string }>(
+    `SELECT s.email
+       FROM unsubscribe_tokens t JOIN subscribers s ON s.id = t.subscriber_id
+      WHERE t.token_hash = $1 AND t.used_at IS NULL AND t.expires_at > NOW()`,
+    [sha256(token)],
+  );
+  return r.rows[0] ?? null;
+}
+
+export interface UnsubscribeFeedback {
+  reason: string | null;
+  remarks: string | null;
+}
+
 /** Called when the person presses Confirm: marks the subscriber as unsubscribed. */
-export async function confirmUnsubscribe(token: string): Promise<ConfirmResult> {
+export async function confirmUnsubscribe(
+  token: string,
+  feedback: UnsubscribeFeedback = { reason: null, remarks: null },
+): Promise<ConfirmResult> {
   const client = await getPool().connect();
   try {
     await client.query("BEGIN");
@@ -82,6 +105,12 @@ export async function confirmUnsubscribe(token: string): Promise<ConfirmResult> 
       return "expired";
     }
 
+    // A reason is mandatory: never unsubscribe without one (routes.ts checks too).
+    if (!feedback.reason) {
+      await client.query("ROLLBACK");
+      return "invalid";
+    }
+
     const s = await client.query<{
       id: string;
       first_name: string;
@@ -96,13 +125,31 @@ export async function confirmUnsubscribe(token: string): Promise<ConfirmResult> 
       [row.subscriber_id],
     );
 
-    await client.query(`UPDATE unsubscribe_tokens SET used_at = NOW() WHERE token_hash = $1`, [
-      sha256(token),
-    ]);
+    await client.query(
+      `UPDATE unsubscribe_tokens SET used_at = NOW() WHERE token_hash = $1`,
+      [sha256(token)],
+    );
 
     // Newly unsubscribed: record telemetry. Failures here must not undo the unsubscribe.
     if (s.rowCount === 1) {
       const sub = s.rows[0];
+      // Save the "why" answers. A missing column (migration 002 not run) must not block the unsubscribe.
+      if (feedback.reason || feedback.remarks) {
+        await client.query("SAVEPOINT feedback");
+        try {
+          await client.query(
+            `UPDATE subscribers SET unsubscribe_reason = $2, unsubscribe_remarks = $3 WHERE id = $1`,
+            [sub.id, feedback.reason, feedback.remarks],
+          );
+          await client.query("RELEASE SAVEPOINT feedback");
+        } catch (err) {
+          await client.query("ROLLBACK TO SAVEPOINT feedback");
+          console.error(
+            "[store] feedback not saved (run migration 002?):",
+            (err as Error).message,
+          );
+        }
+      }
       await client.query("SAVEPOINT audit");
       try {
         let campaignName: string | null = null;

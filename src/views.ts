@@ -1,4 +1,5 @@
 import { config } from "./config";
+import { MAX_REMARKS, UNSUBSCRIBE_REASONS } from "./reasons";
 
 const esc = (s: string) =>
   s
@@ -30,7 +31,11 @@ type Tone = "blue" | "green" | "amber";
 const icon = (name: keyof typeof ICONS, tone: Tone) =>
   `<span class="icon icon-${tone}"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg></span>`;
 
-const layout = (title: string, inner: string) => `<!doctype html>
+const layout = (
+  title: string,
+  inner: string,
+  cardClass = "",
+) => `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -50,7 +55,7 @@ const layout = (title: string, inner: string) => `<!doctype html>
   </div>
 </header>
 <main class="stage">
-  <section class="card" aria-live="polite">
+  <section class="card ${cardClass}" aria-live="polite">
 ${inner}
   </section>
   <p class="foot">${esc(config.brandName)} · This page only changes your own email preferences.</p>
@@ -63,18 +68,36 @@ const homeLink = () =>
     ? `<a class="btn btn-ghost" href="${esc(config.homeUrl)}" rel="noopener noreferrer">Back to website</a>`
     : "";
 
-export const confirmPage = (email: string, token: string) =>
+export const confirmPage = (
+  email: string,
+  token: string,
+  opts: { error?: string; remarks?: string } = {},
+) =>
   layout(
     "Unsubscribe",
     `    ${icon("mail", "blue")}
     <h1>Unsubscribe from emails?</h1>
     <p class="lead">You'll stop receiving emails from ${esc(config.brandName)} at</p>
     <p class="email">${esc(maskEmail(email))}</p>
-    <form method="post" action="/unsubscribe" class="actions">
+    <form method="post" action="/unsubscribe">
       <input type="hidden" name="token" value="${esc(token)}">
-      <button type="submit" class="btn btn-primary">Confirm unsubscribe</button>
+      <fieldset class="why">
+          <legend class="why-title">Why are you unsubscribing? <span class="req" aria-hidden="true">*</span></legend>${opts.error ? `\n        <p class="form-error" role="alert">${esc(opts.error)}</p>` : ""}
+        <div class="reasons">
+${UNSUBSCRIBE_REASONS.map(
+  (r) =>
+    `          <label class="reason"><input type="radio" name="reason" value="${r.id}" required><span>${esc(r.label)}</span></label>`,
+).join("\n")}
+        </div>
+      </fieldset>
+      <label class="remarks-label" for="remarks">Any remarks? <span class="opt">(optional)</span></label>
+      <textarea id="remarks" name="remarks" class="remarks" maxlength="${MAX_REMARKS}" rows="4" placeholder="Tell us more so we can improve">${esc(opts.remarks ?? "")}</textarea>
+      <div class="actions">
+        <button type="submit" class="btn btn-primary">Confirm Unsubscribe</button>
+      </div>
     </form>
     <p class="hint">Changed your mind? Close this window. Nothing changes unless you confirm. This request expires in ${config.tokenTtlMinutes} minutes.</p>`,
+    "card-form",
   );
 
 export const donePage = (already = false) =>
